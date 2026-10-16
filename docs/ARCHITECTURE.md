@@ -32,13 +32,15 @@ Panes are tagged with a tmux pane option `@role`; windows carry `@kind` (`home`,
 | `atelier/panels/*.py` | welcome, pick, tree, dash, system: each a prompt_toolkit full-screen app |
 | `bin/tbrowse` | lynx wrapper for agents |
 | `tools/ccadmin.py` | curses manager for plugins, skills and MCP servers |
+| `tools/make_logo.py` | draws `docs/logo.svg` from the palette and the welcome wordmark |
 
 ## Layout (responsive)
 
 `layout_window` is idempotent. Given the window width it decides which side panels should exist (tree from
 100 columns, dash from 150, minus anything toggled off with F5/F6 in the `@hide` option), kills the ones that
 should not, splits in the missing ones with `split-window -d` (so focus stays on Claude), and restores their
-widths if they drifted. It runs from tmux hooks: `client-resized`, `client-attached`, `after-select-window`.
+widths (remembered in `layout.json`, capped so Claude keeps 60 columns) if they drifted. A border drag ends in
+`atelier snap`, which saves the new widths, snaps them to presets and closes a panel dragged under 14 columns. It runs from tmux hooks: `client-resized`, `client-attached`, `after-select-window`.
 
 ## Persistence
 
@@ -87,6 +89,6 @@ without touching your real setup. Unit tests cover the pure logic: transcript pa
 
 ## Not done yet
 
-- clicking the tab-bar buttons and the F7/F3 popups were not exercised by a human in a real terminal
+- the F7/F3 popups were not exercised by a human in a real terminal
 - a command palette, per-tab activity dots, a git-aware tab title
 - an Ori/Hermes-style skin system (the palette is one dataclass today)

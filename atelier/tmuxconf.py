@@ -32,12 +32,12 @@ set -g status-position top
 set -g status-interval 15
 set -g status-style "bg=$BG,fg=$MUTED"
 set -g status-left-length 40
-set -g status-right-length 90
+set -g status-right-length 100
 set -g status-left "#[fg=$ACCENT,bold] #{?client_prefix,#[fg=$RUN]◆,◆} atelier #[fg=$SURFACE]│#[default]#($A tick)"
 set -g window-status-separator ""
 set -g window-status-format "#[fg=$MUTED] #I #W#{?window_activity_flag,#[fg=$ACCENT]•,} "
 set -g window-status-current-format "#[bg=$SURFACE,fg=$ACCENT,bold] #I #W #[default]"
-set -g status-right "#[range=user|new]#[fg=$RUN]  + tab #[norange]#[range=user|sys]#[fg=$WEB] system #[norange]#[range=user|mgr]#[fg=$SEARCH] manage #[norange]#[fg=$MUTED]│ %H:%M "
+set -g status-right "#[range=user|tree]#[fg=$MUTED] tree #[norange]#[range=user|dash]#[fg=$MUTED]dash #[norange]#[range=user|new]#[fg=$RUN]  + tab #[norange]#[range=user|sys]#[fg=$WEB] system #[norange]#[range=user|mgr]#[fg=$SEARCH] manage #[norange]#[fg=$MUTED]│ %H:%M "
 set -g pane-border-style "fg=$SURFACE"
 set -g pane-active-border-style "fg=$ACCENT"
 set -g window-style "bg=$BG"
@@ -77,11 +77,24 @@ bind -n MouseDown1Status if -F '#{==:#{mouse_status_range},new}' {
     if -F '#{==:#{mouse_status_range},mgr}' {
       display-popup -E -w 92% -h 88% "ccadmin"
     } {
-      select-window -t=
+      if -F '#{==:#{mouse_status_range},tree}' {
+        run-shell "$A toggle tree"
+      } {
+        if -F '#{==:#{mouse_status_range},dash}' {
+          run-shell "$A toggle dash"
+        } {
+          select-window -t=
+        }
+      }
     }
   }
 }
 bind -n DoubleClick1Status command-prompt -I "#W" "rename-window -- '%%'"
+
+# --- drag a pane border to resize; on release the width snaps to a preset (or the panel closes if dragged shut);
+#     F9 resets the layout ---
+bind -n MouseDragEnd1Border run-shell -b "$A snap #{window_id}"
+bind -n F9 run-shell -b "$A reset"
 
 # --- responsive panels and persistence ---
 set-hook -g client-resized "run-shell -b '$A layout'"

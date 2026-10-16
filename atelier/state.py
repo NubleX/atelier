@@ -14,6 +14,7 @@ from typing import Iterator
 CONFIG_DIR = Path(os.environ.get("ATELIER_CONFIG_DIR", str(Path.home() / ".config" / "atelier")))
 STATE_FILE = CONFIG_DIR / "state.json"
 LOCK_FILE = CONFIG_DIR / "state.lock"
+LAYOUT_FILE = CONFIG_DIR / "layout.json"
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 
 
@@ -69,6 +70,22 @@ def save(state: State) -> None:
     tmp = STATE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps({"tabs": [asdict(t) for t in state.tabs], "selected": state.selected}, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, STATE_FILE)
+
+
+def load_widths() -> dict[str, int]:
+    """Side panel widths the user dragged to, by role; empty when nothing was saved."""
+    try:
+        raw = json.loads(LAYOUT_FILE.read_text(encoding="utf-8"))
+        return {str(k): int(v) for k, v in raw.items() if isinstance(v, int) and not isinstance(v, bool) and v > 0}
+    except (OSError, ValueError, AttributeError, TypeError):
+        return {}
+
+
+def save_widths(widths: dict[str, int]) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = LAYOUT_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(widths, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, LAYOUT_FILE)
 
 
 class Locked(Exception):

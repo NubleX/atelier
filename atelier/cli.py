@@ -6,6 +6,8 @@ Commands (run by you, by the tmux keys and by the panels):
   atelier panel NAME      run a panel: welcome tree dash system pick
   atelier layout          reflow the side panels to the terminal width
   atelier toggle ROLE     show or hide the tree or dash panel in this tab
+  atelier snap WINDOW_ID  after a border drag: snap the panel widths to presets, hide a panel dragged shut
+  atelier reset           default panel widths, panels visible again
   atelier system          show the system tab
   atelier save | tick | close WINDOW_ID
 """
@@ -24,9 +26,26 @@ from atelier.tmuxconf import render
 ROOT = Path(__file__).resolve().parent.parent
 BIN = str(ROOT / "bin" / "atelier")
 CONF = st.CONFIG_DIR / "tmux.conf"
-TREE_WIDTH, DASH_WIDTH = 30, 44
+DEFAULT_WIDTHS = {"tree": 30, "dash": 44}
+PRESETS = {"tree": (20, 30, 40, 50), "dash": (32, 44, 60, 80)}  # widths a dragged border snaps to
+SNAP_RANGE = 3  # columns from a preset within which a dragged border is pulled onto it
+COLLAPSE_BELOW = 14  # a panel dragged narrower than this closes
+MIN_CLAUDE = 60  # columns Claude always keeps
 TREE_MIN, DASH_MIN = 100, 150  # window widths from which each side panel is shown
 SIDE_ROLES = ("tree", "dash")
+
+
+def snap_width(role: str, width: int) -> int:
+    """Pulls a dragged width onto the nearest preset when it is within SNAP_RANGE, else leaves it."""
+    nearest = min(PRESETS[role], key=lambda p: abs(p - width))
+    return nearest if abs(nearest - width) <= SNAP_RANGE else width
+
+
+def side_width(role: str, window_width: int, panels: int) -> int:
+    """The remembered (else default) width of a side panel, capped so Claude keeps MIN_CLAUDE columns."""
+    wanted = st.load_widths().get(role, DEFAULT_WIDTHS[role])
+    cap = max(COLLAPSE_BELOW, (window_width - MIN_CLAUDE - 2) // max(panels, 1))
+    return min(wanted, cap)
 
 
 def write_conf() -> None:
@@ -36,7 +55,9 @@ def write_conf() -> None:
 
 def claude_command(cwd: str, session: str) -> str:
     resume = f" --resume {session}" if session and (st.transcript_dir(cwd) / f"{session}.jsonl").is_file() else ""
-    return f"exec env -u CLAUDE_CODE_DISABLE_MOUSE COLORTERM=truecolor claude{resume}"
+    # fullscreen is what makes Claude Code report mouse clicks, so its mods' buttons work; ATELIER_FULLSCREEN=0 opts out
+    fullscreen = "" if os.environ.get("ATELIER_FULLSCREEN") == "0" else "CLAUDE_CODE_NO_FLICKER=1 "
+    return f"exec env -u CLAUDE_CODE_DISABLE_MOUSE {fullscreen}COLORTERM=truecolor claude{resume}"
 
 
 def new_work_tab(cwd: str, name: str = "", session: str = "", select: bool = True) -> str:
@@ -95,9 +116,9 @@ def layout_window(window_id: str) -> None:
         if role not in want:
             run("kill-pane", "-t", pane.id)
     for role in want:
-        size = TREE_WIDTH if role == "tree" else DASH_WIDTH
+        size = side_width(role, win.width, len(want))
         if role in have:
-            if abs(have[role].width - size) > 6:
+            if have[role].width != size:
                 run("resize-pane", "-t", have[role].id, "-x", str(size))
             continue
         flags = ["-hb"] if role == "tree" else ["-h"]
@@ -123,6 +144,34 @@ def toggle(role: str) -> None:
     hidden.symmetric_difference_update({role})
     set_option(wid, "@hide", ",".join(sorted(hidden)))
     layout_window(wid)
+
+
+def snap_window(window_id: str) -> None:
+    """Runs when a border drag ends: remembers the new widths, pulls them onto presets, closes a panel dragged shut."""
+    win = next((w for w in list_windows() if w.id == window_id), None)
+    if win is None or win.kind != "work":
+        return
+    widths = st.load_widths()
+    hidden = set(filter(None, get_option(window_id, "@hide").split(",")))
+    for pane in list_panes(window_id):
+        if pane.role not in SIDE_ROLES:
+            continue
+        if pane.width < COLLAPSE_BELOW:
+            hidden.add(pane.role)
+        else:
+            widths[pane.role] = snap_width(pane.role, pane.width)
+    st.save_widths(widths)
+    set_option(window_id, "@hide", ",".join(sorted(hidden)))
+    layout_window(window_id)
+
+
+def reset_layout() -> None:
+    rc, wid = run("display-message", "-p", "#{window_id}")
+    if rc != 0:
+        return
+    st.save_widths({})
+    set_option(wid, "@hide", "")
+    layout_all()
 
 
 def save_state(allow_empty: bool = False) -> None:
@@ -233,6 +282,12 @@ def main(argv: list[str]) -> int:
         return 0
     if cmd == "toggle" and rest:
         toggle(rest[0])
+        return 0
+    if cmd == "snap" and rest:
+        snap_window(rest[0])
+        return 0
+    if cmd == "reset":
+        reset_layout()
         return 0
     if cmd == "system":
         ensure_system()
