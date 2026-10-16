@@ -1,3 +1,19 @@
+<p align="center">
+  <a href="https://idarti.com"><img src="docs/logo.svg" alt="atelier" width="720"></a>
+</p>
+
+<p align="center">
+  <a href="https://idarti.com"><img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-bc96ee?style=flat-square&labelColor=150b22&logo=python&logoColor=white"></a>
+  <a href="https://idarti.com"><img alt="tmux 3.4+" src="https://img.shields.io/badge/tmux-3.4%2B-3dd5e6?style=flat-square&labelColor=150b22&logo=tmux&logoColor=white"></a>
+  <a href="https://idarti.com"><img alt="prompt_toolkit" src="https://img.shields.io/badge/TUI-prompt_toolkit-e879b8?style=flat-square&labelColor=150b22"></a>
+  <a href="https://idarti.com"><img alt="Claude Code" src="https://img.shields.io/badge/for-Claude%20Code-d946a8?style=flat-square&labelColor=150b22&logo=claude&logoColor=white"></a>
+  <a href="https://idarti.com"><img alt="Linux and macOS" src="https://img.shields.io/badge/platform-linux%20%7C%20macos-6cb4f7?style=flat-square&labelColor=150b22&logo=linux&logoColor=white"></a>
+  <a href="https://idarti.com"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22d36e?style=flat-square&labelColor=150b22"></a>
+  <a href="https://idarti.com"><img alt="version" src="https://img.shields.io/github/v/tag/NubleX/atelier?style=flat-square&labelColor=150b22&color=e879b8&label=version"></a>
+  <a href="https://idarti.com"><img alt="last commit" src="https://img.shields.io/github/last-commit/NubleX/atelier?style=flat-square&labelColor=150b22&color=9a85bd"></a>
+  <a href="https://idarti.com"><img alt="idarti.com" src="https://img.shields.io/badge/by-ID%20ArtCraft-e879b8?style=flat-square&labelColor=150b22"></a>
+</p>
+
 # atelier
 
 One calm, Aurelia-skinned harness around real [Claude Code](https://claude.com/claude-code): a welcome screen,
@@ -7,17 +23,17 @@ doing, a system tab, and a text browser the agents can use.
 tmux hosts the terminals, so Claude Code runs exactly as it does anywhere else: your login, mods, hooks, skills
 and MCP servers are untouched. atelier adds the frame around it and draws its own panels with Python.
 
-```
- ◆ atelier │ 1 home  2 my-site  3 api ────────────────────────  + tab  system  manage │ 14:02
- ┌ work tree ───────┬ Claude Code (the real thing) ───────────────────┬ dash ─────────────────────┐
- │ ▾ src            │                                                  │ model  claude-sonnet-5-5  │
- │   ▸ components   │ ❯ ...                                            │  opus  sonnet  haiku      │
- │ ◆ App.tsx        │                                                  │ usage  last reply 4s ago  │
- │ M server.ts      │                                                  │ 14:01 ok Bash  git status │
- └──────────────────┴──────────────────────────────────────────────────┴───────────────────────────┘
-```
+![A work tab: work tree on the left, Claude Code in the middle, model and usage dash on the right](docs/workspace.png)
 
-(Schematic. The side panels follow the window width; see Responsive below.)
+## Screenshots
+
+| Welcome | Manage (`ccadmin`) |
+| --- | --- |
+| ![Welcome screen with the banner, your counts and recent projects](docs/welcome.png) | ![ccadmin listing plugins, skills and MCP servers](docs/manage.png) |
+
+![System tab: disk bars, cleanup candidates and deleted-but-open files](docs/system.png)
+
+The side panels follow the window width; see Responsive below.
 
 ## Install
 
@@ -44,11 +60,21 @@ atelier
 | F5 / F6 | hide or show the work tree / the dash panel |
 | F7 | manage plugins, skills and MCP servers (`ccadmin`) |
 | F8 | close this tab (asks first) |
+| F9 | reset the panel widths |
 | Alt+1..9 | jump to a tab |
 | Ctrl+Space | tmux prefix for everything else |
 
 Only F-keys and Alt+digits are taken, so Claude Code keeps its own Ctrl and other Alt shortcuts. The tab bar is
-clickable; `+ tab`, `system` and `manage` at its right are buttons.
+clickable; `tree`, `dash`, `+ tab`, `system` and `manage` at its right are buttons.
+
+Drag a pane border to resize the work tree or dash. On release the width snaps to a preset (tree 20/30/40/50,
+dash 32/44/60/80) when within 3 columns, otherwise it stays where you left it. Drag a panel narrower than 14
+columns and it closes; the `tree` / `dash` buttons or F5 / F6 bring it back. Widths are remembered in
+`~/.config/atelier/layout.json`.
+
+Claude Code starts in its fullscreen mode (`CLAUDE_CODE_NO_FLICKER=1`), the only mode in which it reports mouse
+clicks, so the buttons of your mods (the band above the prompt) respond. Scrolling then happens inside Claude
+Code. Set `ATELIER_FULLSCREEN=0` to start it the old way.
 
 ## What is in it
 
