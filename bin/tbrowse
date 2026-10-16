@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""tbrowse: read the web as plain text through lynx. Fast, no JavaScript, built for agents and subagents.
+
+  tbrowse URL                 page as text, with a numbered link list at the end
+  tbrowse links URL           only the links, one per line
+  tbrowse search QUERY...     DuckDuckGo results (lite page) as text
+Options: --max N (characters, default 20000)  --width N (default 100)
+
+It identifies itself as lynx. Pages that demand JavaScript or a bot check will come back empty or as the
+challenge text; say so instead of working around it.
+"""
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+from urllib.parse import quote_plus
+
+DEFAULT_MAX, DEFAULT_WIDTH = 20000, 100
+
+
+def fetch(url: str, width: int) -> tuple[int, str]:
+    lynx = shutil.which("lynx")
+    if not lynx:
+        return 127, "lynx is not installed (sudo apt install lynx)"
+    args = [lynx, "-dump", f"-width={width}", "-display_charset=utf-8", "-assume_charset=utf-8",
+            "-connect_timeout=15", "-read_timeout=30", "-accept_all_cookies"]
+    try:
+        r = subprocess.run([*args, url], capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        return 124, f"timed out fetching {url}"
+    if r.returncode != 0:
+        return r.returncode, (r.stderr.strip() or f"lynx exited {r.returncode}")
+    return 0, r.stdout
+
+
+def link_lines(text: str) -> str:
+    """The 'References' block lynx appends, as 'N. url' lines."""
+    marker = text.rfind("References")
+    return text[marker:].split("\n", 2)[-1].strip() if marker >= 0 else "(no links)"
+
+
+def parse(argv: list[str]) -> tuple[str, list[str], int, int]:
+    limit, width, rest = DEFAULT_MAX, DEFAULT_WIDTH, []
+    it = iter(argv)
+    for a in it:
+        if a == "--max":
+            limit = int(next(it, DEFAULT_MAX))
+        elif a == "--width":
+            width = int(next(it, DEFAULT_WIDTH))
+        else:
+            rest.append(a)
+    mode = rest[0] if rest and rest[0] in ("links", "search") else "get"
+    return mode, rest[1:] if mode != "get" else rest, limit, width
+
+
+def main(argv: list[str]) -> int:
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0 if argv else 2
+    mode, rest, limit, width = parse(argv)
+    if not rest:
+        print("tbrowse: missing URL or query", file=sys.stderr)
+        return 2
+    if mode == "search":
+        url = "https://lite.duckduckgo.com/lite/?q=" + quote_plus(" ".join(rest))
+    else:
+        url = rest[0] if "://" in rest[0] else "https://" + rest[0]
+    rc, text = fetch(url, width)
+    if rc != 0:
+        print(f"tbrowse: {text}", file=sys.stderr)
+        return rc
+    body = link_lines(text) if mode == "links" else text
+    clipped = len(body) > limit
+    print(f"# tbrowse {url} ({len(body)} chars{', clipped' if clipped else ''})")
+    print(body[:limit])
+    if clipped:
+        print(f"\n# ... clipped at {limit} chars; raise it with --max")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
