@@ -25,7 +25,7 @@ Requires Linux or macOS with `tmux` 3.4+ (developed and tested on 3.7c), Python 
 and `claude` on your PATH. `lynx` is optional (for `tbrowse`).
 
 ```
-git clone https://github.com/NubleX/aurelian-claude.git && cd aurelian-claude
+git clone https://github.com/NubleX/atelier.git && cd atelier
 pip install -r requirements.txt      # prompt_toolkit, psutil (use a venv if your distro asks)
 ./install.sh                         # links atelier, tbrowse, ccadmin into ~/.local/bin
 atelier
